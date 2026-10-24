@@ -198,6 +198,7 @@
 "playapp.exportKmPanel.fieldLabel" = "PlayMap 名称：";
 "sidebar.appLibrary" = "App 库";
 "sidebar.ipaLibrary" = "IPA 资源库";
+"sidebar.layoutPicker" = "网格视图布局";
 "alert.moveAppToApplications.title" = "是否移动至应用程序文件夹？";
 "alert.moveAppToApplications.subtitle" = "PlayCover必须在应用程序文件夹下才能正常运行。点击下方按钮将会自动移动PlayCover至应用程序文件夹。";
 "error.appEncrypted" = "此应用已被加密！请使用未加密的 ipa 文件。 现已不再支持来自 iMazing 的 ipa！";
@@ -302,6 +303,12 @@
 "configSigning.step.complete" = "软件包签名已成功配置";
 "alert.power.title" = "低电量模式已开启！";
 "alert.power.subtitle" = "部分应用程序在启用低电量模式后将无法工作。建议将其关闭。";
+"settings.customPlugins.title" = "自定义插件";
+"settings.customPlugins.add" = "添加…";
+"settings.customPlugins.empty" = "尚未安装自定义插件。";
+"settings.customPlugins.warningTitle" = "要添加自定义插件吗？";
+"settings.customPlugins.warningMessage" = "自定义插件是可任意执行的代码，对本应用进程拥有完全访问权限。请只添加您信任的来源提供的插件。";
+"settings.customPlugins.warningConfirm" = "仍然添加";
 "ipaLibrary.version.older" = "此版本比您已安装的应用更旧";
 "ipaLibrary.version.same" = "应用已安装";
 "ipaLibrary.version.newer" = "这个版本比你已安装的版本更高";
@@ -310,10 +317,12 @@
 "settings.text.debugger" = "调试器：";
 "settings.toggle.lldb" = "用 LLDB 高性能调试器打开";
 "ipaLibrary.alert.download" = "您确定您要下载这个版本的 %@ 吗?";
+"alert.download.downloadAnyway" = "仍然下载";
 "ipaLibrary.download" = "下载";
 "settings.toggle.lldbWithTerminal" = "在终端里打开";
 "settings.unavailable.hud" = "Metal HUD 不可用";
 "error.failedToStripBinary" = "无法在通用二进制文件中检索到 ARM64 架构！";
+"error.invalidUserDylib" = "此文件不是 PlayCover 可为本应用架构转换的有效 dylib，因此 PlayTools 无法加载它。";
 "settings.playChain.enable" = "启用 PlayChain (试验阶段)";
 "settings.playChain.help" = "在此应用启用 PlayChain 将使应用（部分）使用 Apple Keychain 服务";
 "settings.playChain.debugging" = "PlayChain 调试";
@@ -420,6 +429,8 @@
 "settings.toggle.limitMotionUpdateFrequency.help" = "限制运动传感器更新频率，避免过高的 CPU 占用（常见于 Unity 游戏）。";
 "settings.toggle.blockSleepSpamming" = "防止滥用 usleep 调用";
 "settings.toggle.blockSleepSpamming.help" = "防止应用频繁调用 usleep() 系统调用，从而避免资源耗尽";
+"settings.toggle.ignoreUnityKeyboardInitializationError" = "忽略 Unity 键盘初始化错误";
+"settings.toggle.ignoreUnityKeyboardInitializationError.help" = "防止因断言失败 \"[KeyboardDelegate Initialize] called after creating keyboard\" 导致的崩溃";
 "keymap.title" = "%@ 键位映射";
 "keymap.title.import" = "导入键位映射名称";
 "keymap.title.rename" = "重命名键位映射名称";
