@@ -32,16 +32,38 @@ struct KeyCoverSettings: View {
 
     @ObservedObject var modifierKeyObserver = ModifierKeyObserver.shared
 
+    private var envDisabled: Bool { KeyCover.isDisabledByEnvironment }
+
+    private var statusText: LocalizedStringKey {
+        if envDisabled {
+            return "keycover.status.envDisabled"
+        }
+        if keyCoverObserved.keyCoverEnabled {
+            return KeyCoverPreferences.shared.keyCoverEnabled == .selfGeneratedPassword
+                ? "keycover.status.managedPassword" : "keycover.status.userPassword"
+        }
+        return "state.disabled"
+    }
+
     var body: some View {
         VStack {
+            if envDisabled {
+                HStack(alignment: .top) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundColor(.orange)
+                    Text("keycover.status.envDisabled.help")
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding()
+            }
             HStack {
                 HStack {
                     Text("keycover.status.title")
-                    Text(keyCoverObserved.keyCoverEnabled ?
-                             KeyCoverPreferences.shared.keyCoverEnabled == .selfGeneratedPassword ?
-                             "keycover.status.managedPassword" : "keycover.status.userPassword"
-                         : "state.disabled")
-                        .foregroundColor(keyCoverObserved.keyCoverEnabled ? .green : .none)
+                    Text(statusText)
+                        .foregroundColor(envDisabled
+                                         ? .orange
+                                         : (keyCoverObserved.keyCoverEnabled ? .green : .none))
                     Spacer()
                 }
                 Spacer()
@@ -56,6 +78,7 @@ struct KeyCoverSettings: View {
                         keyCoverInitialSetupShown = true
                     }
                 }
+                .disabled(envDisabled)
                 .foregroundColor((keyCoverObserved.keyCoverEnabled
                                  && modifierKeyObserver.isOptionKeyPressed)
                                     ? .red : .none)
@@ -73,7 +96,7 @@ struct KeyCoverSettings: View {
                 Button("keycover.button.lockAll") {
                     KeyCover.shared.lockAllChainsAsync()
                 }
-                .disabled(!keyCoverObserved.keyCoverEnabled)
+                .disabled(envDisabled || !keyCoverObserved.keyCoverEnabled)
             }
             .padding()
             HStack {
@@ -81,13 +104,14 @@ struct KeyCoverSettings: View {
                 Button("keycover.button.changePassword") {
                     keyCoverUpdatePasswordShown = true
                 }
-                .disabled(!keyCoverObserved.keyCoverEnabled)
+                .disabled(envDisabled || !keyCoverObserved.keyCoverEnabled)
                 Spacer()
             }
             .padding()
             VStack(alignment: .leading) {
                 Toggle("keycover.toggle.startupPrompt", isOn: $keyCoverPreferences.promptForKeyCoverPasswordAtLaunch)
                     .help("keycover.toggle.startupPrompt.help")
+                    .disabled(envDisabled)
                 Spacer()
             }
             .padding()
