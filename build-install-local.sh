@@ -27,6 +27,7 @@ XCODEBUILD_PKG_FLAGS=(
 # Preferences and launchedBefore are left unchanged. Encrypted PlayChain DBs are not
 # decrypted while this is set — use a clean environment for acceptance tests.
 #   PLAYCOVER_DISABLE_KEYCOVER=1 "$HOME/Applications/PlayCover.app/Contents/MacOS/PlayCover"
+#   open --env PLAYCOVER_DISABLE_KEYCOVER=1 -a "$HOME/Applications/PlayCover.app"
 
 require_cmd() {
     if ! command -v "$1" >/dev/null 2>&1; then
