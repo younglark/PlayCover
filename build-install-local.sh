@@ -9,6 +9,19 @@ INSTALL_APP_PATH="${INSTALL_DIR}/PlayCover.app"
 VENDOR_PLAYTOOLS="${ROOT_DIR}/External/PlayTools"
 CHECKOUT_PLAYTOOLS="${ROOT_DIR}/Carthage/Checkouts/PlayTools"
 
+# All Swift Package dependencies are public GitHub repos and need no credentials.
+# Stop xcodebuild/git from reading the github.com item in the login keychain,
+# which otherwise triggers a "xcodebuild wants to access confidential information"
+# prompt on every build.
+export GIT_TERMINAL_PROMPT=0
+export GIT_CONFIG_COUNT=1
+export GIT_CONFIG_KEY_0=credential.helper
+export GIT_CONFIG_VALUE_0=""
+XCODEBUILD_PKG_FLAGS=(
+    -packageAuthorizationProvider netrc
+    -scmProvider system
+)
+
 require_cmd() {
     if ! command -v "$1" >/dev/null 2>&1; then
         printf "Missing required command: %s\n" "$1" >&2
@@ -103,6 +116,7 @@ setup_developer_dir() {
 ensure_ios_platform() {
     local dest_out
     dest_out="$(xcodebuild \
+        "${XCODEBUILD_PKG_FLAGS[@]}" \
         -project "${CHECKOUT_PLAYTOOLS}/PlayTools.xcodeproj" \
         -scheme PlayTools \
         -showdestinations 2>/dev/null || true)"
@@ -243,6 +257,7 @@ rm -f "${ROOT_DIR}/Carthage/Build/.PlayTools.version"
 # Newer Xcode requires -scheme (not -target) when using -derivedDataPath.
 printf "==> Building AKInterface (macOS)...\n"
 FASTLANE=1 xcodebuild \
+    "${XCODEBUILD_PKG_FLAGS[@]}" \
     -project "${CHECKOUT_PLAYTOOLS}/PlayTools.xcodeproj" \
     -scheme AKInterface \
     -configuration Release \
@@ -263,6 +278,7 @@ fi
 # 2) Build PlayTools for iphoneos (scheme also embeds AKInterface; binary is often stripped).
 printf "==> Building PlayTools (iphoneos)...\n"
 FASTLANE=1 xcodebuild \
+    "${XCODEBUILD_PKG_FLAGS[@]}" \
     -project "${CHECKOUT_PLAYTOOLS}/PlayTools.xcodeproj" \
     -scheme PlayTools \
     -configuration Release \
@@ -322,6 +338,7 @@ PLIST
 
 printf "==> Building PlayCover (ad-hoc signing, no certificate required)...\n"
 xcodebuild \
+    "${XCODEBUILD_PKG_FLAGS[@]}" \
     -project "$ROOT_DIR/PlayCover.xcodeproj" \
     -scheme PlayCover \
     -configuration Release \
