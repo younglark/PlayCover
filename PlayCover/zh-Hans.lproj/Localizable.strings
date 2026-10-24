@@ -362,6 +362,8 @@
 "keycover.error.incorrectPassword" = "密码不正确";
 "keycover.status.title" = "KeyCover 状态:";
 "keycover.status.managedPassword" = "使用管理密码启用";
+"keycover.status.envDisabled" = "已由 PLAYCOVER_DISABLE_KEYCOVER 禁用";
+"keycover.status.envDisabled.help" = "当前进程因设置了 PLAYCOVER_DISABLE_KEYCOVER 而关闭 KeyCover。已加密的游戏钥匙串数据库不会被改动，也无法读取。取消该环境变量后重新启动即可恢复正常行为。";
 "keycover.status.userPassword" = "启用用户密码";
 "keycover.status.chainCount" = "KeyCover链状态: ";
 "keycover.status.unlockedCount %@ %@" = "%@ 总共解锁了 %@ 条链";

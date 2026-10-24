@@ -309,6 +309,8 @@
 
 "keycover.status.title" = "KeyCover Status:";
 "keycover.status.managedPassword" = "Enabled with Managed Password";
+"keycover.status.envDisabled" = "Disabled by PLAYCOVER_DISABLE_KEYCOVER";
+"keycover.status.envDisabled.help" = "KeyCover is turned off for this process because PLAYCOVER_DISABLE_KEYCOVER is set. Encrypted game keychains are left untouched and cannot be read. Unset the variable and relaunch for normal KeyCover behavior.";
 "keycover.status.userPassword" = "Enabled with User Password";
 "keycover.status.chainCount" = "KeyCover Chain Status: ";
 "keycover.status.unlockedCount %@ %@" = "%@ unlocked chains in %@ total";

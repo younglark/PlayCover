@@ -30,14 +30,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         }
         URLCache.iconCache.removeAllCachedResponses()
         // Code that run once on first launch
+        // When PLAYCOVER_DISABLE_KEYCOVER is set, skip KeyCover init and do not
+        // persist launchedBefore so a later normal launch still runs first-time setup.
         let launchedBefore = UserDefaults.standard.bool(forKey: "launchedBefore")
         if !launchedBefore {
-            UserDefaults.standard.set(true, forKey: "launchedBefore")
+            if KeyCover.isDisabledByEnvironment {
+                NSLog("PlayCover: PLAYCOVER_DISABLE_KEYCOVER set; skipping first-launch KeyCover init")
+            } else {
+                UserDefaults.standard.set(true, forKey: "launchedBefore")
 
-            // Initialize KeyCover with an automatically generated key
-            let keyCoverPassword = KeyCoverPassword.shared.generateVerySecurePassword()
-            KeyCoverPassword.shared.setKeyCoverPassword(keyCoverPassword)
-            KeyCoverPreferences.shared.keyCoverEnabled = .selfGeneratedPassword
+                // Initialize KeyCover with an automatically generated key
+                let keyCoverPassword = KeyCoverPassword.shared.generateVerySecurePassword()
+                KeyCoverPassword.shared.setKeyCoverPassword(keyCoverPassword)
+                KeyCoverPreferences.shared.keyCoverEnabled = .selfGeneratedPassword
+            }
+        } else if KeyCover.isDisabledByEnvironment {
+            NSLog("PlayCover: PLAYCOVER_DISABLE_KEYCOVER set; KeyCover keychain access disabled")
         }
 
     }
