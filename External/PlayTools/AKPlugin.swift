@@ -84,6 +84,42 @@ class AKPlugin: NSObject, Plugin {
         NSApplication.shared.windows.first?.frame ?? CGRect()
     }
 
+    private weak var trackedMouseWindow: NSWindow?
+    private var trackedMouseLocation = CGPoint.zero
+    private var hasTrackedMouse = false
+
+    private func trackMouse(_ event: NSEvent) {
+        trackedMouseWindow = event.window
+        trackedMouseLocation = event.locationInWindow
+        hasTrackedMouse = true
+    }
+
+    private func pointerWindow() -> NSWindow? {
+        if hasTrackedMouse, let window = trackedMouseWindow {
+            return window
+        }
+        let app = NSApplication.shared
+        return app.keyWindow ?? app.mainWindow ?? app.windows.first { $0.contentView != nil }
+    }
+
+    func contentPointer(_ point: UnsafeMutablePointer<CGPoint>, size: UnsafeMutablePointer<CGSize>) -> Bool {
+        guard let window = pointerWindow(), let contentView = window.contentView else { return false }
+        let bounds = contentView.bounds
+        guard bounds.width > 0, bounds.height > 0 else { return false }
+
+        let location = hasTrackedMouse && trackedMouseWindow === window
+            ? trackedMouseLocation
+            : window.mouseLocationOutsideOfEventStream
+        let local = contentView.convert(location, from: nil)
+        let x = local.x - bounds.minX
+        let y = contentView.isFlipped ? local.y - bounds.minY : bounds.maxY - local.y
+        guard x >= 0, y >= 0, x <= bounds.width, y <= bounds.height else { return false }
+
+        point.pointee = CGPoint(x: x, y: y)
+        size.pointee = bounds.size
+        return true
+    }
+
     var isMainScreenEqualToFirst: Bool {
         return NSScreen.main == NSScreen.screens.first
     }
@@ -190,6 +226,7 @@ class AKPlugin: NSObject, Plugin {
     func setupMouseMoved(_ mouseMoved: @escaping (CGFloat, CGFloat) -> Bool) {
         let mask: NSEvent.EventTypeMask = [.leftMouseDragged, .otherMouseDragged, .rightMouseDragged]
         NSEvent.addLocalMonitorForEvents(matching: mask, handler: { event in
+            self.trackMouse(event)
             let consumed = mouseMoved(event.deltaX, event.deltaY)
             if consumed {
                 return nil
@@ -198,6 +235,7 @@ class AKPlugin: NSObject, Plugin {
         })
         // transpass mouse moved event when no button pressed, for traffic light button to light up
         NSEvent.addLocalMonitorForEvents(matching: .mouseMoved, handler: { event in
+            self.trackMouse(event)
             _ = mouseMoved(event.deltaX, event.deltaY)
             return event
         })
@@ -227,6 +265,7 @@ class AKPlugin: NSObject, Plugin {
         }
 
         NSEvent.addLocalMonitorForEvents(matching: downType, handler: { event in
+            self.trackMouse(event)
             // Always allow clicks on the window traffic-light buttons to pass through
             if isInTrafficLightArea(event) {
                 return event
@@ -253,6 +292,7 @@ class AKPlugin: NSObject, Plugin {
             return event
         })
         NSEvent.addLocalMonitorForEvents(matching: upType, handler: { event in
+            self.trackMouse(event)
             // Always allow releases on the traffic-light buttons to pass through
             if isInTrafficLightArea(event) {
                 return event
@@ -266,6 +306,7 @@ class AKPlugin: NSObject, Plugin {
 
     func setupScrollWheel(_ onMoved: @escaping (CGFloat, CGFloat) -> Bool) {
         NSEvent.addLocalMonitorForEvents(matching: NSEvent.EventTypeMask.scrollWheel, handler: { event in
+            self.trackMouse(event)
             var deltaX = event.scrollingDeltaX, deltaY = event.scrollingDeltaY
             if !event.hasPreciseScrollingDeltas {
                 deltaX *= 16

@@ -14,6 +14,9 @@ public protocol Plugin: NSObjectProtocol {
     var screenCount: Int { get }
     var mousePoint: CGPoint { get }
     var windowFrame: CGRect { get }
+    /// Pointer in the event window's content view, origin at the top-left, plus that view's size.
+    /// False when the pointer is outside the content view.
+    func contentPointer(_ point: UnsafeMutablePointer<CGPoint>, size: UnsafeMutablePointer<CGSize>) -> Bool
     var mainScreenFrame: CGRect { get }
     var isMainScreenEqualToFirst: Bool { get }
     var isFullscreen: Bool { get }
