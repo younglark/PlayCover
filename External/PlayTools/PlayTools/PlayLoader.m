@@ -25,9 +25,46 @@
 int dyld_get_active_platform(void);
 int pt_dyld_get_active_platform(void) { return PLATFORM_IOS; }
 
+// A guest fishhook rewrites this image's GOT for sysctl, sysctlbyname, and
+// uname, then calls the pointer it saved — these wrappers. A by-name call
+// tail-calls that GOT entry and recurses until the stack guard. Dyld binds
+// the interpose replacee to the real libsystem function before any code runs,
+// and fishhook does not walk __interpose. dlsym(RTLD_NEXT) returns the
+// wrapper, so the real call has to load this slot. optnone keeps the load
+// from being folded back into a GOT-relative call of the same symbol.
+__attribute__((noinline, optnone))
+static void *pc_bound_replacee(const void * const *replaceeSlot) {
+    return *(void *volatile *)replaceeSlot;
+}
+
+static int pt_uname(struct utsname *uts);
+static int pt_sysctl(int *name, u_int types, void *buf, size_t *size, void *arg0, size_t arg1);
+static int pt_sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen);
+
+typedef int (*pc_uname_fn)(struct utsname *);
+typedef int (*pc_sysctl_fn)(int *, u_int, void *, size_t *, void *, size_t);
+typedef int (*pc_sysctlbyname_fn)(const char *, void *, size_t *, void *, size_t);
+
+__attribute__((used)) static struct { const void *replacement; const void *replacee; } _interpose_uname
+    __attribute__((section("__DATA,__interpose"))) = {
+        (const void *)(unsigned long)&pt_uname,
+        (const void *)(unsigned long)&uname,
+};
+__attribute__((used)) static struct { const void *replacement; const void *replacee; } _interpose_sysctlbyname
+    __attribute__((section("__DATA,__interpose"))) = {
+        (const void *)(unsigned long)&pt_sysctlbyname,
+        (const void *)(unsigned long)&sysctlbyname,
+};
+__attribute__((used)) static struct { const void *replacement; const void *replacee; } _interpose_sysctl
+    __attribute__((section("__DATA,__interpose"))) = {
+        (const void *)(unsigned long)&pt_sysctl,
+        (const void *)(unsigned long)&sysctl,
+};
+
 // Change the machine output by uname to match expected output on iOS
 static int pt_uname(struct utsname *uts) {
-    uname(uts);
+    pc_uname_fn real_uname = (pc_uname_fn)pc_bound_replacee(&_interpose_uname.replacee);
+    real_uname(uts);
     strncpy(uts->machine, DEVICE_MODEL, sizeof(uts->machine) - 1);
     uts->machine[sizeof(uts->machine) - 1] = '\0';
     return 0;
@@ -61,7 +98,8 @@ static int pt_sysctl(int *name, u_int types, void *buf, size_t *size, void *arg0
         return 0;
     }
 
-    return sysctl(name, types, buf, size, arg0, arg1);
+    pc_sysctl_fn real_sysctl = (pc_sysctl_fn)pc_bound_replacee(&_interpose_sysctl.replacee);
+    return real_sysctl(name, types, buf, size, arg0, arg1);
 }
 
 static int pt_sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *newp, size_t newlen) {
@@ -78,7 +116,8 @@ static int pt_sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *
             *oldlenp = strlen(DEVICE_MODEL) + 1;
             return 0;
         } else {
-            int ret = sysctlbyname(name, oldp, oldlenp, newp, newlen);
+            pc_sysctlbyname_fn real_sysctlbyname = (pc_sysctlbyname_fn)pc_bound_replacee(&_interpose_sysctlbyname.replacee);
+            int ret = real_sysctlbyname(name, oldp, oldlenp, newp, newlen);
             return ret;
         }
     } else if ((strcmp(name, "hw.target") == 0)) {
@@ -93,19 +132,18 @@ static int pt_sysctlbyname(const char *name, void *oldp, size_t *oldlenp, void *
             *oldlenp = strlen(OEM_ID) + 1;
             return 0;
         } else {
-            int ret = sysctlbyname(name, oldp, oldlenp, newp, newlen);
+            pc_sysctlbyname_fn real_sysctlbyname = (pc_sysctlbyname_fn)pc_bound_replacee(&_interpose_sysctlbyname.replacee);
+            int ret = real_sysctlbyname(name, oldp, oldlenp, newp, newlen);
             return ret;
         }
     } else {
-        return sysctlbyname(name, oldp, oldlenp, newp, newlen);
+        pc_sysctlbyname_fn real_sysctlbyname = (pc_sysctlbyname_fn)pc_bound_replacee(&_interpose_sysctlbyname.replacee);
+        return real_sysctlbyname(name, oldp, oldlenp, newp, newlen);
     }
 }
 
 // Interpose the functions create the wrapper
 DYLD_INTERPOSE(pt_dyld_get_active_platform, dyld_get_active_platform)
-DYLD_INTERPOSE(pt_uname, uname)
-DYLD_INTERPOSE(pt_sysctlbyname, sysctlbyname)
-DYLD_INTERPOSE(pt_sysctl, sysctl)
 
 // Interpose Apple Keychain functions (SecItemCopyMatching, SecItemAdd, SecItemUpdate, SecItemDelete)
 // This allows us to intercept keychain requests and return our own data
