@@ -27,13 +27,22 @@ class Toucher {
                 return
             }
             tid = -1
-            keyWindow = screen.keyWindow
-            keyView = keyWindow!.hitTest(point, with: nil)
         } else if tid == nil {
             return
         }
-        var recordId = tid!
-        tid = PTFakeMetaTouch.fakeTouchId(tid!, at: point, with: phase, in: keyWindow, on: keyView)
+        let currentId = tid!
+        // Flutter hit-tests by entering the root isolate, which Dart only allows
+        // on the platform thread. Callers on playcover.toucher block here so the
+        // touch id is assigned before they continue.
+        let updatedId = onMainThread { () -> Int in
+            if phase == UITouch.Phase.began {
+                keyWindow = screen.keyWindow
+                keyView = keyWindow!.hitTest(point, with: nil)
+            }
+            return PTFakeMetaTouch.fakeTouchId(currentId, at: point, with: phase, in: keyWindow, on: keyView)
+        }
+        var recordId = currentId
+        tid = updatedId
         writeLog(logMessage:
                 "\(phase.rawValue.description) \(tid!.description) \(point.debugDescription)")
         if tid! < 0 {
@@ -43,6 +52,13 @@ class Toucher {
         }
         DebugModel.instance.record(point: point, phase: phase, tid: recordId,
                                    description: actionName + "(" + keyName + ")")
+    }
+
+    private static func onMainThread<T>(_ work: () -> T) -> T {
+        if Thread.isMainThread {
+            return work()
+        }
+        return DispatchQueue.main.sync(execute: work)
     }
 
     static func setupLogfile() {
