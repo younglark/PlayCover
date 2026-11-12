@@ -26,11 +26,31 @@ struct KeyCover {
         return playChainDir
     }
 
+    /// When `PLAYCOVER_DISABLE_KEYCOVER` is `1`/`true`/`yes` (case-insensitive),
+    /// KeyCover is fully disabled for this process lifetime: no macOS keychain I/O.
+    static var isDisabledByEnvironment: Bool {
+        guard let raw = ProcessInfo.processInfo.environment["PLAYCOVER_DISABLE_KEYCOVER"]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased(),
+              !raw.isEmpty else {
+            return false
+        }
+        return ["1", "true", "yes"].contains(raw)
+    }
+
     // This is only exposed at runtime
-    var keyCoverPlainTextKey: String? = KeyCoverPreferences.shared.keyCoverEnabled == .selfGeneratedPassword
-    ? KeyCoverPassword.shared.getKeyCoverPassword() : nil
+    var keyCoverPlainTextKey: String? = {
+        if KeyCover.isDisabledByEnvironment {
+            return nil
+        }
+        return KeyCoverPreferences.shared.keyCoverEnabled == .selfGeneratedPassword
+            ? KeyCoverPassword.shared.getKeyCoverPassword() : nil
+    }()
 
     func isKeyCoverEnabled() -> Bool {
+        if KeyCover.isDisabledByEnvironment {
+            return false
+        }
         return KeyCoverPreferences.shared.keyCoverEnabled != .disabled
     }
 
@@ -58,6 +78,9 @@ struct KeyCover {
     }
 
     func unlockChain(_ keychain: KeyCoverKey) async throws {
+        if KeyCover.isDisabledByEnvironment {
+            return
+        }
         if keyCoverPlainTextKey == nil {
             let task = Task {@MainActor in
                 KeyCoverObservable.shared.isKeyCoverUnlockingPromptShown = true
@@ -97,9 +120,18 @@ class KeyCoverObservable: ObservableObject {
     @Published var unlockedCount = KeyCover.shared.unlockedCount()
     @Published var keychains = KeyCover.shared.listKeychains()
 
-    @Published var isKeyCoverUnlockingPromptShown = KeyCoverPreferences.shared.keyCoverEnabled == .selfGeneratedPassword
-    ? false : KeyCoverPreferences.shared.keyCoverEnabled == .disabled
-    ? false : KeyCoverPreferences.shared.promptForKeyCoverPasswordAtLaunch
+    @Published var isKeyCoverUnlockingPromptShown: Bool = {
+        if KeyCover.isDisabledByEnvironment {
+            return false
+        }
+        if KeyCoverPreferences.shared.keyCoverEnabled == .selfGeneratedPassword {
+            return false
+        }
+        if KeyCoverPreferences.shared.keyCoverEnabled == .disabled {
+            return false
+        }
+        return KeyCoverPreferences.shared.promptForKeyCoverPasswordAtLaunch
+    }()
 
     func update() {
         keyCoverEnabled = KeyCover.shared.isKeyCoverEnabled()
@@ -184,6 +216,10 @@ class KeyCoverPassword {
     let tag = "io.playcover.masterkey"
 
     func setKeyCoverPassword(_ key: String) {
+        if KeyCover.isDisabledByEnvironment {
+            NSLog("PlayCover: PLAYCOVER_DISABLE_KEYCOVER set; skipping setKeyCoverPassword")
+            return
+        }
         // swiftlint: disable force_unwrapping
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: tag,
@@ -225,6 +261,9 @@ class KeyCoverPassword {
     }
 
     func getKeyCoverPassword() -> String? {
+        if KeyCover.isDisabledByEnvironment {
+            return nil
+        }
         // Get the master key from macOS keychain
         let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
                                     kSecAttrService as String: tag,
@@ -243,6 +282,10 @@ class KeyCoverPassword {
     }
 
     func removeKeyCoverPassword() {
+        if KeyCover.isDisabledByEnvironment {
+            NSLog("PlayCover: PLAYCOVER_DISABLE_KEYCOVER set; skipping removeKeyCoverPassword")
+            return
+        }
         // Decrypt all key dbs
         for chain in KeyCover.shared.listKeychains() where chain.chainEncryptionStatus {
                 try? chain.decryptKeyDB()
@@ -269,6 +312,10 @@ class KeyCoverPassword {
     }
 
     func forceResetKeyCoverPassword() {
+        if KeyCover.isDisabledByEnvironment {
+            NSLog("PlayCover: PLAYCOVER_DISABLE_KEYCOVER set; skipping forceResetKeyCoverPassword")
+            return
+        }
         // If a key is in memory, don't do anything (prevent accidental deletion)
         if KeyCover.shared.keyCoverPlainTextKey != nil {
             return
@@ -297,6 +344,9 @@ class KeyCoverPassword {
     }
 
     func validatePassword(_ key: String) -> Bool {
+        if KeyCover.isDisabledByEnvironment {
+            return false
+        }
         return key == getKeyCoverPassword()
     }
 
